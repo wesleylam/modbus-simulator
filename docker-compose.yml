@@ -1,0 +1,24 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "502:502"   # Modbus TCP
+      - "8000:8000" # REST API + WebSocket
+    volumes:
+      - ./registers.csv:/app/registers.csv
+    environment:
+      CSV_PATH: /app/registers.csv
+      MODBUS_HOST: "0.0.0.0"
+      MODBUS_PORT: "502"
+      API_HOST: "0.0.0.0"
+      API_PORT: "8000"
+    # port 502 requires elevated privileges on Linux
+    cap_add:
+      - NET_BIND_SERVICE
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
