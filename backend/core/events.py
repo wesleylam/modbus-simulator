@@ -6,11 +6,12 @@ from dataclasses import dataclass
 @dataclass
 class RegisterChangeEvent:
     address: int
-    old_value: int | bool
-    new_value: int | bool
+    old_value: int | bool | None
+    new_value: int | bool | None
     source: str           # "modbus" | "api"
     client_ip: str | None
     timestamp: float = 0.0
+    event_type: str = "update"   # "update" | "add" | "remove" | "meta"
 
     def __post_init__(self):
         if not self.timestamp:
@@ -18,7 +19,7 @@ class RegisterChangeEvent:
 
     def to_dict(self) -> dict:
         return {
-            "type": "update",
+            "type": self.event_type,
             "address": self.address,
             "old_value": self.old_value,
             "new_value": self.new_value,

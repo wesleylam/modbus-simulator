@@ -29,6 +29,7 @@ class RegisterStore:
         self._data: Dict[int, Register] = {}
         self._lock = asyncio.Lock()
         self._change_callbacks: List[Callable] = []
+        self.unit_id: int = 1  # Modbus device/slave address (1–247)
 
     def load(self, registers: List[Register]):
         """Replace the entire register map (called on startup or reload)."""
@@ -53,7 +54,6 @@ class RegisterStore:
             old_value = reg.value
             reg.value = value
             reg.last_changed = time.time()
-        # Fire callbacks outside lock
         for cb in self._change_callbacks:
             await cb(address, old_value, value, source, client_ip)
         return old_value, value
@@ -67,6 +67,29 @@ class RegisterStore:
         reg.value = value
         reg.last_changed = time.time()
         return old_value, value
+
+    def add(self, register: Register) -> None:
+        if register.address in self._data:
+            raise ValueError(f"Register {register.address} already exists")
+        self._data[register.address] = register
+
+    def remove(self, address: int) -> bool:
+        if address in self._data:
+            del self._data[address]
+            return True
+        return False
+
+    def edit_meta(self, address: int, name: str = None, reg_type: str = None, writable: bool = None) -> Optional["Register"]:
+        reg = self._data.get(address)
+        if reg is None:
+            return None
+        if name is not None:
+            reg.name = name
+        if reg_type is not None:
+            reg.reg_type = reg_type
+        if writable is not None:
+            reg.writable = writable
+        return reg
 
     def register_change_callback(self, cb: Callable):
         self._change_callbacks.append(cb)

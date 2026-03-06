@@ -16,15 +16,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-CSV_PATH   = os.environ.get("CSV_PATH",    "/app/registers.csv")
-MODBUS_HOST = os.environ.get("MODBUS_HOST", "0.0.0.0")
+CSV_PATH    = os.environ.get("CSV_PATH",      "/app/registers.csv")
+MODBUS_HOST = os.environ.get("MODBUS_HOST",   "0.0.0.0")
 MODBUS_PORT = int(os.environ.get("MODBUS_PORT", "502"))
-API_HOST    = os.environ.get("API_HOST",   "0.0.0.0")
-API_PORT    = int(os.environ.get("API_PORT",   "8000"))
+MODBUS_UNIT = int(os.environ.get("MODBUS_UNIT", "1"))   # default unit ID = 1
+API_HOST    = os.environ.get("API_HOST",      "0.0.0.0")
+API_PORT    = int(os.environ.get("API_PORT",    "8000"))
 
 
 def main():
-    # 1. Load registers from CSV
     logger.info(f"Loading register map from {CSV_PATH}")
     try:
         registers = load_csv(CSV_PATH)
@@ -34,11 +34,10 @@ def main():
 
     logger.info(f"Loaded {len(registers)} registers")
 
-    # 2. Populate store
     store = RegisterStore()
     store.load(registers)
+    store.unit_id = MODBUS_UNIT
 
-    # 3. Start Modbus TCP server in a background daemon thread
     modbus_thread = threading.Thread(
         target=start_modbus_server,
         args=(store, MODBUS_HOST, MODBUS_PORT),
@@ -46,9 +45,8 @@ def main():
         name="modbus-server",
     )
     modbus_thread.start()
-    logger.info(f"Modbus TCP server starting on {MODBUS_HOST}:{MODBUS_PORT}")
+    logger.info(f"Modbus TCP server starting on {MODBUS_HOST}:{MODBUS_PORT} (unit ID: {MODBUS_UNIT})")
 
-    # 4. Build and run FastAPI app (blocks until shutdown)
     app = create_app(store)
     logger.info(f"API server starting on {API_HOST}:{API_PORT}")
     uvicorn.run(app, host=API_HOST, port=API_PORT, log_level="info")
