@@ -46,7 +46,11 @@ class StoreBackedDataBlock(ModbusSparseDataBlock):
                 client_ip=None,
                 timestamp=time.time(),
             )
-            try:
-                asyncio.run_coroutine_threadsafe(event_bus.put(evt), self._loop)
-            except Exception as e:
-                logger.warning(f"Failed to emit change event: {e}")
+    def getValues(self, address: int, count: int = 1, context=None):
+        """Override to always read from the live store, ensuring API updates are visible to Modbus reads."""
+        values = self._store.get_values_by_type(self._reg_type)
+        result = []
+        for i in range(count):
+            addr = address + i
+            result.append(values.get(addr, 0))
+        return result
